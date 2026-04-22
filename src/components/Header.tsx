@@ -54,6 +54,7 @@ export const Header: React.FC<HeaderProps> = ({
 
             <button
               onClick={toggleTheme}
+              aria-label="Toggle theme"
               className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
             >
               {theme === "dark" ? (

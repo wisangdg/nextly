@@ -25,13 +25,13 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, onEdit }) => {
   const getPriorityColor = (priority: Task["priority"]) => {
     switch (priority) {
       case "high":
-        return "bg-red-600 text-white";
+        return "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200";
       case "medium":
-        return "bg-yellow-500 text-white";
+        return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-200";
       case "low":
-        return "bg-green-500 text-white";
+        return "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200";
       default:
-        return "bg-gray-600 text-white";
+        return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200";
     }
   };
 
@@ -45,6 +45,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, onEdit }) => {
 
   return (
     <motion.div
+      layout
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
@@ -57,21 +58,23 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, onEdit }) => {
         <div className="flex items-start justify-between">
           <div className="flex items-start space-x-2 sm:space-x-3 flex-1">
             <input
+              id={`task-${task.id}`}
               type="checkbox"
               checked={task.status === TaskStatus.Completed}
               onChange={() => toggleTaskCompletion(task.id)}
-              className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
             />
             <div className="flex-1 min-w-0">
-              <h3
-                className={`text-sm sm:text-base font-medium truncate ${
+              <label
+                htmlFor={`task-${task.id}`}
+                className={`text-sm sm:text-base font-medium truncate block cursor-pointer ${
                   task.status === TaskStatus.Completed
                     ? "line-through text-gray-500 dark:text-gray-400"
                     : "text-gray-900 dark:text-white"
                 }`}
               >
                 {task.title}
-              </h3>
+              </label>
               <p className="mt-1 text-xs sm:text-sm text-gray-600 dark:text-gray-300 line-clamp-2">
                 {task.description}
               </p>
@@ -103,6 +106,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, onEdit }) => {
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => onEdit(task)}
+              aria-label="Edit task"
               className="p-2 text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 rounded-full hover:bg-primary-50 dark:hover:bg-secondary-700 transition-colors"
             >
               <PencilIcon className="h-5 w-5" />
@@ -111,6 +115,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, onEdit }) => {
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.95 }}
               onClick={handleDelete}
+              aria-label="Delete task"
               className="p-2 text-secondary-400 hover:text-red-600 dark:hover:text-red-400 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
             >
               <TrashIcon className="h-5 w-5" />

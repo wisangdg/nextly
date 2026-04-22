@@ -11,7 +11,7 @@ import { ModalProvider } from "./context/ModalContext";
 import { TaskEditModal } from "./components/TaskEditModal";
 import { KeyboardShortcuts } from "./components/KeyboardShortcuts";
 import { AnimatePresence } from "framer-motion";
-import { Task } from "./types/Task"; // We'll use this imported type only
+
 
 function App() {
   const [currentView, setCurrentView] = useState<"dashboard" | "tasks">(
@@ -19,8 +19,6 @@ function App() {
   );
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [error, setError] = useState<string | null>(null);
 
   // Handle keyboard shortcuts
   useEffect(() => {
@@ -40,43 +38,11 @@ function App() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isQuickAddOpen]);
 
-  useEffect(() => {
-    // Load tasks from local storage or an API
-    try {
-      const storedTasks = localStorage.getItem("tasks");
-      if (storedTasks) {
-        setTasks(JSON.parse(storedTasks));
-      }
-    } catch (e: unknown) {
-      if (e instanceof Error) {
-        setError("Failed to load tasks.");
-        console.error(e);
-      }
-    }
-  }, []);
-
-  useEffect(() => {
-    // Save tasks to local storage
-    try {
-      localStorage.setItem("tasks", JSON.stringify(tasks));
-    } catch (e: unknown) {
-      if (e instanceof Error) {
-        setError("Failed to save tasks.");
-        console.error(e);
-      }
-    }
-  }, [tasks]);
-
   return (
     <ThemeProvider>
       <TaskProvider>
         <ModalProvider>
           <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
-            {error && (
-              <div className="text-red-500 p-4 bg-red-100 dark:bg-red-800 dark:text-red-100">
-                {error}
-              </div>
-            )}
             <div className="flex h-screen overflow-hidden">
               <Sidebar
                 currentView={currentView}

@@ -31,7 +31,6 @@ export const QuickAddTask: React.FC<QuickAddTaskProps> = ({
       category: "other",
       priority: "medium",
       status: TaskStatus.Active,
-      completed: false, // Add this line
     });
 
     toast.success("Task added successfully!");
@@ -69,6 +68,7 @@ export const QuickAddTask: React.FC<QuickAddTaskProps> = ({
               onChange={(e) => setTitle(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
               placeholder="Enter task title..."
+              aria-label="Task title"
               autoFocus
             />
             <div className="mt-4 flex justify-end">

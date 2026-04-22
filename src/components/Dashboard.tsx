@@ -51,25 +51,25 @@ export const Dashboard: React.FC = () => {
           title="Total Tasks"
           value={stats.total}
           icon={<ChartBarIcon className="h-6 w-6" />}
-          className="bg-gradient-to-br from-primary-500 to-primary-700"
+          className="bg-gradient-to-br from-primary-700 to-primary-900"
         />
         <StatCard
           title="Completed"
           value={stats.completed}
           icon={<CheckCircleIcon className="h-6 w-6" />}
-          className="bg-gradient-to-br from-green-500 to-green-700"
+          className="bg-gradient-to-br from-green-700 to-green-900"
         />
         <StatCard
           title="In Progress"
           value={stats.incomplete}
           icon={<ClockIcon className="h-6 w-6" />}
-          className="bg-gradient-to-br from-yellow-500 to-yellow-700"
+          className="bg-gradient-to-br from-amber-600 to-amber-800"
         />
         <StatCard
           title="High Priority"
           value={stats.highPriority}
           icon={<ExclamationTriangleIcon className="h-6 w-6" />}
-          className="bg-gradient-to-br from-red-500 to-red-700"
+          className="bg-gradient-to-br from-red-700 to-red-900"
         />
       </div>
 
@@ -140,7 +140,7 @@ const StatCard = ({ title, value, icon, className }: StatCardProps) => (
   >
     <div className="flex justify-between items-center">
       <div>
-        <p className="text-sm font-medium opacity-90">{title}</p>
+        <p className="text-sm font-medium">{title}</p>
         <p className="mt-1 text-3xl font-bold">{value}</p>
       </div>
       <div className="p-3 bg-white bg-opacity-20 rounded-lg">{icon}</div>

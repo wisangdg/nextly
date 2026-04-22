@@ -39,7 +39,6 @@ export const TaskForm: React.FC = () => {
     addTask({
       ...formData,
       description: formData.description || "No description",
-      completed: false,
       status: TaskStatus.Active,
       dueDate: formData.dueDate || undefined,
     });

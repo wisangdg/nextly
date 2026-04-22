@@ -22,13 +22,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({
     if (savedTasks) {
       try {
         const parsedTasks = JSON.parse(savedTasks);
-        // Convert string dates back to Date objects
-        return parsedTasks.map((task: Task) => ({
-          ...task,
-          createdAt: new Date(task.createdAt),
-          updatedAt: new Date(task.updatedAt),
-          dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
-        }));
+        return parsedTasks;
       } catch (e) {
         console.error("Failed to parse tasks from localStorage", e);
         return [];
