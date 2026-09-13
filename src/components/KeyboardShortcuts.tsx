@@ -9,7 +9,19 @@ export const KeyboardShortcuts: React.FC<KeyboardShortcutsProps> = ({
 }) => {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.altKey && e.key === "n") {
+      // Ignore when user is actively typing in form inputs
+      const target = e.target as HTMLElement | null;
+      const isInputActive =
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT" ||
+          target.isContentEditable);
+
+      if (isInputActive) return;
+
+      // Alt+N for quick add
+      if (e.altKey && (e.key === "n" || e.key === "N")) {
         e.preventDefault();
         onQuickAdd();
       }

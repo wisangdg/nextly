@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Internal improvement plan / review notes
+docs/improvement-plan.md

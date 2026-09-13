@@ -1,13 +1,13 @@
 import React, { useState } from "react";
-import { useTaskContext } from "../context/TaskContext";
-import { Category, Priority, TaskStatus } from "../types/Task";
+import { useTasks } from "../context/useTasks.ts";
+import { TaskStatus } from "../types/Task.ts";
+import type { Category, Priority } from "../types/Task.ts";
 import { motion } from "framer-motion";
 import {
   TagIcon,
   FlagIcon,
   CalendarDaysIcon,
 } from "@heroicons/react/24/outline";
-import toast from "react-hot-toast";
 
 const categories: Category[] = [
   "work",
@@ -19,7 +19,7 @@ const categories: Category[] = [
 const priorities: Priority[] = ["low", "medium", "high"];
 
 export const TaskForm: React.FC = () => {
-  const { addTask } = useTaskContext();
+  const { addTask } = useTasks();
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -38,7 +38,7 @@ export const TaskForm: React.FC = () => {
 
     addTask({
       ...formData,
-      description: formData.description || "No description",
+      description: formData.description || "",
       status: TaskStatus.Active,
       dueDate: formData.dueDate || undefined,
     });
@@ -52,7 +52,6 @@ export const TaskForm: React.FC = () => {
     });
 
     setError("");
-    toast.success("Task added successfully!");
   };
 
   const handleChange = (

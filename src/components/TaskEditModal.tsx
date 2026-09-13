@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { Dialog } from "@headlessui/react";
 import { XMarkIcon } from "@heroicons/react/24/outline";
-import { useTaskContext } from "../context/TaskContext";
-import { useModal } from "../context/ModalContext";
-import { Category, Priority } from "../types/Task"; // Updated casing
-import toast from "react-hot-toast";
+import { useTasks } from "../context/useTasks.ts";
+import { useModal } from "../context/useModal.ts";
+import { TaskStatus } from "../types/Task.ts";
+import type { Category, Priority } from "../types/Task.ts";
+import { MAX_TITLE_LENGTH, MAX_DESCRIPTION_LENGTH } from "../utils/storage.ts";
 
 const categories: Category[] = [
   "work",
@@ -13,11 +14,13 @@ const categories: Category[] = [
   "health",
   "other",
 ];
+
 const priorities: Priority[] = ["low", "medium", "high"];
 
 export const TaskEditModal: React.FC = () => {
-  const { updateTask } = useTaskContext();
-  const { isTaskEditModalOpen, taskToEdit, closeTaskEditModal } = useModal();
+  const { addTask, updateTask } = useTasks();
+  const { isTaskModalOpen, modalMode, taskToEdit, initialTitle, closeTaskModal } = useModal();
+
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -25,32 +28,72 @@ export const TaskEditModal: React.FC = () => {
     priority: "medium" as Priority,
     dueDate: "",
   });
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (taskToEdit) {
+    if (modalMode === "edit" && taskToEdit) {
       setFormData({
         title: taskToEdit.title,
-        description: taskToEdit.description,
+        description: taskToEdit.description || "",
         category: taskToEdit.category,
         priority: taskToEdit.priority,
-        dueDate: taskToEdit.dueDate
-          ? new Date(taskToEdit.dueDate).toISOString().split("T")[0]
-          : "",
+        dueDate: taskToEdit.dueDate ? taskToEdit.dueDate.split("T")[0] : "",
       });
+      setValidationError(null);
+    } else if (modalMode === "create") {
+      setFormData({
+        title: initialTitle || "",
+        description: "",
+        category: "other",
+        priority: "medium",
+        dueDate: "",
+      });
+      setValidationError(null);
     }
-  }, [taskToEdit]);
+  }, [modalMode, taskToEdit, initialTitle, isTaskModalOpen]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.title.trim()) {
-      toast.error("Title is required");
+    const trimmedTitle = formData.title.trim();
+
+    if (!trimmedTitle) {
+      setValidationError("Task title is required.");
       return;
     }
 
-    if (taskToEdit) {
-      updateTask(taskToEdit.id, formData);
-      toast.success("Task updated successfully!");
-      closeTaskEditModal();
+    if (trimmedTitle.length > MAX_TITLE_LENGTH) {
+      setValidationError(`Title must be under ${MAX_TITLE_LENGTH} characters.`);
+      return;
+    }
+
+    if (formData.description.length > MAX_DESCRIPTION_LENGTH) {
+      setValidationError(`Description must be under ${MAX_DESCRIPTION_LENGTH} characters.`);
+      return;
+    }
+
+    if (modalMode === "edit" && taskToEdit) {
+      const success = updateTask(taskToEdit.id, {
+        title: trimmedTitle,
+        description: formData.description,
+        category: formData.category,
+        priority: formData.priority,
+        dueDate: formData.dueDate.trim() ? formData.dueDate : null,
+      });
+      if (success) {
+        closeTaskModal();
+      }
+    } else {
+      const created = addTask({
+        title: trimmedTitle,
+        description: formData.description,
+        category: formData.category,
+        priority: formData.priority,
+        status: TaskStatus.Active,
+        dueDate: formData.dueDate || undefined,
+      });
+      if (created) {
+        closeTaskModal();
+      }
     }
   };
 
@@ -61,85 +104,107 @@ export const TaskEditModal: React.FC = () => {
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    if (name === "title" && value.trim()) {
+      setValidationError(null);
+    }
   };
 
-  if (!isTaskEditModalOpen || !taskToEdit) return null;
+  if (!isTaskModalOpen) return null;
+
+  const isEdit = modalMode === "edit";
 
   return (
     <Dialog
-      open={isTaskEditModalOpen}
-      onClose={closeTaskEditModal}
+      open={isTaskModalOpen}
+      onClose={closeTaskModal}
       className="fixed inset-0 z-50 overflow-y-auto"
     >
-      <div className="min-h-screen px-4 text-center">
-        <Dialog.Overlay className="fixed inset-0 bg-black opacity-30" />
-        <div className="inline-block w-full max-w-md p-6 my-8 overflow-hidden text-left align-middle transition-all transform bg-white dark:bg-gray-800 shadow-xl rounded-2xl">
-          <div className="flex justify-between items-center mb-4">
-            <Dialog.Title className="text-lg font-medium text-gray-900 dark:text-white">
-              Edit Task
+      <div className="min-h-screen px-4 text-center flex items-center justify-center p-4">
+        <Dialog.Overlay className="fixed inset-0 bg-secondary-900/60 backdrop-blur-xs transition-opacity" />
+
+        <div className="inline-block w-full max-w-lg p-6 my-8 overflow-hidden text-left align-middle transition-all transform bg-white dark:bg-secondary-800 shadow-2xl rounded-2xl border border-secondary-200 dark:border-secondary-700 relative z-10">
+          <div className="flex justify-between items-center pb-4 border-b border-secondary-100 dark:border-secondary-700/60">
+            <Dialog.Title className="text-xl font-bold text-secondary-900 dark:text-white">
+              {isEdit ? "Edit Task" : "Create New Task"}
             </Dialog.Title>
             <button
-              onClick={closeTaskEditModal}
-              className="text-gray-400 hover:text-gray-500"
+              type="button"
+              onClick={closeTaskModal}
+              aria-label="Close dialog"
+              className="min-h-[44px] min-w-[44px] flex items-center justify-center text-secondary-400 hover:text-secondary-600 dark:hover:text-secondary-200 rounded-lg hover:bg-secondary-100 dark:hover:bg-secondary-700 transition-colors"
             >
-              <XMarkIcon className="h-6 w-6" />
+              <XMarkIcon className="h-6 w-6" aria-hidden="true" />
             </button>
           </div>
-          <form onSubmit={handleSubmit}>
-            <div className="space-y-4">
-              <div>
-                <label
-                  htmlFor="title"
-                  className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-                >
-                  Title
-                </label>
-                <input
-                  type="text"
-                  id="title"
-                  name="title"
-                  value={formData.title}
-                  onChange={handleChange}
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                  placeholder="Task title"
-                />
-              </div>
 
-              <div>
-                <label
-                  htmlFor="description"
-                  className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-                >
-                  Description
-                </label>
-                <textarea
-                  id="description"
-                  name="description"
-                  value={formData.description}
-                  onChange={handleChange}
-                  rows={3}
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                  placeholder="Task description"
-                />
-              </div>
+          {validationError && (
+            <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 rounded-lg text-sm">
+              {validationError}
+            </div>
+          )}
 
+          <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+            {/* Title */}
+            <div>
+              <label
+                htmlFor="modal-task-title"
+                className="block text-sm font-semibold text-secondary-700 dark:text-secondary-300 mb-1"
+              >
+                Title <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                id="modal-task-title"
+                name="title"
+                required
+                maxLength={MAX_TITLE_LENGTH}
+                value={formData.title}
+                onChange={handleChange}
+                className="block w-full px-3.5 py-2.5 rounded-lg border border-secondary-300 dark:border-secondary-600 shadow-xs focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:bg-secondary-700 dark:text-white sm:text-sm"
+                placeholder="What needs to be done?"
+                autoFocus
+              />
+            </div>
+
+            {/* Description */}
+            <div>
+              <label
+                htmlFor="modal-task-description"
+                className="block text-sm font-semibold text-secondary-700 dark:text-secondary-300 mb-1"
+              >
+                Description
+              </label>
+              <textarea
+                id="modal-task-description"
+                name="description"
+                rows={3}
+                maxLength={MAX_DESCRIPTION_LENGTH}
+                value={formData.description}
+                onChange={handleChange}
+                className="block w-full px-3.5 py-2.5 rounded-lg border border-secondary-300 dark:border-secondary-600 shadow-xs focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:bg-secondary-700 dark:text-white sm:text-sm"
+                placeholder="Add optional notes, steps, or acceptance criteria..."
+              />
+            </div>
+
+            {/* Category & Priority & Due Date in a grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <label
-                  htmlFor="category"
-                  className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                  htmlFor="modal-task-category"
+                  className="block text-sm font-medium text-secondary-700 dark:text-secondary-300 mb-1"
                 >
                   Category
                 </label>
                 <select
-                  id="category"
+                  id="modal-task-category"
                   name="category"
                   value={formData.category}
                   onChange={handleChange}
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  className="block w-full px-3 py-2 rounded-lg border border-secondary-300 dark:border-secondary-600 shadow-xs focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:bg-secondary-700 dark:text-white sm:text-sm"
                 >
-                  {categories.map((category) => (
-                    <option key={category} value={category}>
-                      {category.charAt(0).toUpperCase() + category.slice(1)}
+                  {categories.map((c) => (
+                    <option key={c} value={c}>
+                      {c.charAt(0).toUpperCase() + c.slice(1)}
                     </option>
                   ))}
                 </select>
@@ -147,21 +212,21 @@ export const TaskEditModal: React.FC = () => {
 
               <div>
                 <label
-                  htmlFor="priority"
-                  className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                  htmlFor="modal-task-priority"
+                  className="block text-sm font-medium text-secondary-700 dark:text-secondary-300 mb-1"
                 >
                   Priority
                 </label>
                 <select
-                  id="priority"
+                  id="modal-task-priority"
                   name="priority"
                   value={formData.priority}
                   onChange={handleChange}
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  className="block w-full px-3 py-2 rounded-lg border border-secondary-300 dark:border-secondary-600 shadow-xs focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:bg-secondary-700 dark:text-white sm:text-sm"
                 >
-                  {priorities.map((priority) => (
-                    <option key={priority} value={priority}>
-                      {priority.charAt(0).toUpperCase() + priority.slice(1)}
+                  {priorities.map((p) => (
+                    <option key={p} value={p}>
+                      {p.charAt(0).toUpperCase() + p.slice(1)}
                     </option>
                   ))}
                 </select>
@@ -169,35 +234,36 @@ export const TaskEditModal: React.FC = () => {
 
               <div>
                 <label
-                  htmlFor="dueDate"
-                  className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                  htmlFor="modal-task-duedate"
+                  className="block text-sm font-medium text-secondary-700 dark:text-secondary-300 mb-1"
                 >
                   Due Date
                 </label>
                 <input
                   type="date"
-                  id="dueDate"
+                  id="modal-task-duedate"
                   name="dueDate"
                   value={formData.dueDate}
                   onChange={handleChange}
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  className="block w-full px-3 py-2 rounded-lg border border-secondary-300 dark:border-secondary-600 shadow-xs focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:bg-secondary-700 dark:text-white sm:text-sm"
                 />
               </div>
             </div>
 
-            <div className="mt-5 flex justify-end">
+            {/* Buttons */}
+            <div className="mt-6 pt-4 border-t border-secondary-100 dark:border-secondary-700 flex justify-end gap-3">
               <button
                 type="button"
-                onClick={closeTaskEditModal}
-                className="mr-3 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 dark:bg-gray-700 dark:text-white dark:border-gray-600 dark:hover:bg-gray-600"
+                onClick={closeTaskModal}
+                className="min-h-[44px] px-4 py-2 text-sm font-medium text-secondary-700 dark:text-secondary-200 bg-secondary-100 dark:bg-secondary-700 hover:bg-secondary-200 dark:hover:bg-secondary-600 rounded-lg transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                className="min-h-[44px] px-5 py-2 text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors cursor-pointer"
               >
-                Update Task
+                {isEdit ? "Save Changes" : "Create Task"}
               </button>
             </div>
           </form>

@@ -1,121 +1,95 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
-import { Task, TaskStatus } from "../types/Task"; // Updated casing
-import { v4 as uuidv4 } from "uuid";
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import { TaskContext } from "./taskContextDef.ts";
+import { TaskCore } from "./taskCore.ts";
 import toast from "react-hot-toast";
-
-interface TaskContextType {
-  tasks: Task[];
-  addTask: (task: Omit<Task, "id" | "createdAt" | "updatedAt">) => void;
-  updateTask: (id: string, task: Partial<Task>) => void;
-  deleteTask: (id: string) => void;
-  getTask: (id: string) => Task | undefined;
-  toggleTaskCompletion: (id: string) => void;
-}
-
-const TaskContext = createContext<TaskContextType | undefined>(undefined);
 
 export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [tasks, setTasks] = useState<Task[]>(() => {
-    const savedTasks = localStorage.getItem("tasks");
-    if (savedTasks) {
-      try {
-        const parsedTasks = JSON.parse(savedTasks);
-        return parsedTasks;
-      } catch (e) {
-        console.error("Failed to parse tasks from localStorage", e);
-        return [];
-      }
-    }
-    return [];
-  });
+  const [, setTick] = useState(0);
+  const forceUpdate = useCallback(() => setTick((t) => t + 1), []);
 
-  // Save tasks to localStorage when they change
+  const coreRef = useRef<TaskCore | null>(null);
+  if (!coreRef.current) {
+    coreRef.current = new TaskCore(undefined, {
+      onStateChange: forceUpdate,
+      onToastSuccess: (msg) => toast.success(msg),
+      onToastError: (msg) => toast.error(msg),
+      onToastInfo: (msg) => toast(msg),
+      onToastUndo: (task, onUndo) => {
+        toast(
+          (t) => (
+            <div className="flex items-center justify-between gap-3 text-sm">
+              <span className="truncate max-w-[200px]">Deleted "{task.title}"</span>
+              <button
+                onClick={() => {
+                  onUndo();
+                  toast.dismiss(t.id);
+                }}
+                className="px-2 py-1 font-bold text-primary-600 dark:text-primary-400 hover:underline cursor-pointer"
+              >
+                Undo
+              </button>
+            </div>
+          ),
+          { duration: 5000 }
+        );
+      },
+      onConfirm: (msg) => window.confirm(msg),
+    });
+  }
+
+  const core = coreRef.current;
+
+  // Listen for storage events from other tabs (including external clear where key === null) (T07)
   useEffect(() => {
-    localStorage.setItem("tasks", JSON.stringify(tasks));
-  }, [tasks]);
-
-  const addTask = (taskData: Omit<Task, "id" | "createdAt" | "updatedAt">) => {
-    const now = new Date().toISOString(); // Convert to ISO string
-    const newTask: Task = {
-      id: uuidv4(),
-      ...taskData,
-      createdAt: now,
-      updatedAt: now,
-      status: TaskStatus.Active,
+    const handleStorageChange = (e: StorageEvent) => {
+      core.handleStorageEvent(e.key);
     };
 
-    setTasks((prevTasks) => [...prevTasks, newTask]);
-    toast.success("Task added successfully!");
-  };
-
-  const updateTask = (id: string, taskData: Partial<Task>) => {
-    setTasks((prevTasks) =>
-      prevTasks.map((task) =>
-        task.id === id
-          ? { ...task, ...taskData, updatedAt: new Date().toISOString() }
-          : task
-      )
-    );
-    toast.success("Task updated!");
-  };
-
-  const deleteTask = (id: string) => {
-    setTasks((prevTasks) => prevTasks.filter((task) => task.id !== id));
-    toast.success("Task deleted!");
-  };
-
-  const getTask = (id: string) => {
-    return tasks.find((task) => task.id === id);
-  };
-
-  const toggleTaskCompletion = (id: string) => {
-    setTasks((prevTasks) =>
-      prevTasks.map((task) =>
-        task.id === id
-          ? {
-              ...task,
-              status:
-                task.status === TaskStatus.Completed
-                  ? TaskStatus.Active
-                  : TaskStatus.Completed,
-              updatedAt: new Date().toISOString(),
-            }
-          : task
-      )
-    );
-    const task = tasks.find((t) => t.id === id);
-    const isCompleting = task?.status !== TaskStatus.Completed;
-    toast.success(
-      isCompleting ? "Task completed!" : "Task marked as incomplete"
-    );
-  };
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, [core]);
 
   return (
     <TaskContext.Provider
       value={{
-        tasks,
-        addTask,
-        updateTask,
-        deleteTask,
-        getTask,
-        toggleTaskCompletion,
+        tasks: core.tasks,
+        addTask: core.addTask,
+        updateTask: core.updateTask,
+        deleteTask: (id) => {
+          core.deleteTask(id);
+        },
+        undoDelete: () => {},
+        getTask: core.getTask,
+        toggleTaskCompletion: (id) => {
+          core.toggleTaskCompletion(id);
+        },
+        loadSampleTasks: () => {
+          core.loadSampleTasks();
+        },
+        clearAllTasks: () => {
+          core.clearAllTasks();
+        },
+        exportTasks: core.exportTasks,
+        importTasks: core.importTasks,
+        storageError: core.storageError,
+        isCorrupted: core.isCorrupted,
+        rawCorruptedString: core.rawCorruptedString,
+        loadError: core.loadError,
+        isInitialLoadFailed: core.isInitialLoadFailed,
+        retryLoadStorage: core.retryLoadStorage,
+        resetCorruptedStorage: () => {
+          core.resetCorruptedStorage();
+        },
+        downloadRawCorruptedBackup: core.downloadRawCorruptedBackup,
+        hasExternalTabUpdate: core.hasExternalTabUpdate,
+        syncFromStorage: () => {
+          core.syncFromStorage();
+        },
       }}
     >
       {children}
     </TaskContext.Provider>
   );
 };
-
-// Create and export the useTasks hook
-export const useTasks = () => {
-  const context = useContext(TaskContext);
-  if (context === undefined) {
-    throw new Error("useTasks must be used within a TaskProvider");
-  }
-  return context;
-};
-
-// Export the same hook as useTaskContext for backwards compatibility
-export const useTaskContext = useTasks;
